@@ -17,7 +17,7 @@ step "create-deployment" {
                 type: kubernetes.io/basic-auth
                 stringData:
                   password: test1234!
-                EOT
+                    EOT
             Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
             Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
             Octopus.Action.Package.JsonConfigurationVariablesTargets = "**/*.{yml,yaml}"
@@ -71,7 +71,7 @@ step "create-service" {
                   resources:
                     requests:
                       storage: 20Gi
-                EOT
+                    EOT
             Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
             Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -141,7 +141,7 @@ step "deploy-ingress" {
                       - name: mysql-persistent-storage
                         persistentVolumeClaim:
                           claimName: mysql-pv-claim
-                EOT
+                    EOT
             Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
             Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -177,7 +177,7 @@ step "create-service-1" {
                   - port: 3306
                   selector:
                     app: mysql
-                EOT
+                    EOT
             Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
             Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
             Octopus.Action.Script.ScriptSource = "Inline"
