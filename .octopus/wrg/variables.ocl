@@ -1,0 +1,9 @@
+variable "Project.Cluster.Namespace" {
+    value "database" {}
+}
+
+variable "stringData.password" {
+    value "#{Octopub.Tenant.Database.Password}" {
+        action = ["create-secret"]
+    }
+}
