@@ -1,0 +1,193 @@
+step "create-deployment" {
+    name = "Create secret"
+    properties = {
+        Octopus.Action.TargetRoles = "octopub"
+    }
+
+    action "create-secret" {
+        action_type = "Octopus.KubernetesDeployRawYaml"
+        properties = {
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "False"
+            Octopus.Action.KubernetesContainers.CustomResourceYaml = <<-EOT
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: mysql-secret
+                type: kubernetes.io/basic-auth
+                stringData:
+                  password: test1234!
+                EOT
+            Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
+            Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
+            Octopus.Action.Package.JsonConfigurationVariablesTargets = "**/*.{yml,yaml}"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker-hub"
+            image = "octopuslabs/k8s-workertools:latest"
+        }
+    }
+}
+
+step "create-service" {
+    name = "Create volume"
+    properties = {
+        Octopus.Action.TargetRoles = "octopub"
+    }
+
+    action "create-volume" {
+        action_type = "Octopus.KubernetesDeployRawYaml"
+        properties = {
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "False"
+            Octopus.Action.KubernetesContainers.CustomResourceYaml = <<-EOT
+                apiVersion: v1
+                kind: PersistentVolume
+                metadata:
+                  name: mysql-pv-volume
+                  labels:
+                    type: local
+                spec:
+                  storageClassName: manual
+                  capacity:
+                    storage: 20Gi
+                  accessModes:
+                    - ReadWriteOnce
+                  hostPath:
+                    path: "/mnt/data"
+                ---
+                apiVersion: v1
+                kind: PersistentVolumeClaim
+                metadata:
+                  name: mysql-pv-claim
+                spec:
+                  storageClassName: manual
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 20Gi
+                EOT
+            Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
+            Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker-hub"
+            image = "octopuslabs/k8s-workertools:latest"
+        }
+    }
+}
+
+step "deploy-ingress" {
+    name = "Create deployment"
+    properties = {
+        Octopus.Action.TargetRoles = "octopub"
+    }
+
+    action "create-deployment" {
+        action_type = "Octopus.KubernetesDeployRawYaml"
+        properties = {
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "False"
+            Octopus.Action.KubernetesContainers.CustomResourceYaml = <<-EOT
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: mysql
+                spec:
+                  selector:
+                    matchLabels:
+                      app: mysql
+                  strategy:
+                    type: Recreate
+                  template:
+                    metadata:
+                      labels:
+                        app: mysql
+                    spec:
+                      containers:
+                      - image: mysql:5.7
+                        name: mysql
+                        env:
+                        - name: MYSQL_ROOT_PASSWORD
+                          valueFrom:
+                            secretKeyRef:
+                              name: mysql-secret
+                              key: password
+                        - name: MYSQL_USER
+                          value: octopub
+                        - name: MYSQL_PASSWORD
+                          valueFrom:
+                            secretKeyRef:
+                              name: mysql-secret
+                              key: password
+                        - name: MYSQL_DATABASE
+                          value: octopub
+                        ports:
+                        - containerPort: 3306
+                          name: mysql
+                        volumeMounts:
+                        - name: mysql-persistent-storage
+                          mountPath: /var/lib/mysql
+                      volumes:
+                      - name: mysql-persistent-storage
+                        persistentVolumeClaim:
+                          claimName: mysql-pv-claim
+                EOT
+            Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
+            Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker-hub"
+            image = "octopuslabs/k8s-workertools:latest"
+        }
+    }
+}
+
+step "create-service-1" {
+    name = "Create service"
+    properties = {
+        Octopus.Action.TargetRoles = "octopub"
+    }
+
+    action "create-service" {
+        action_type = "Octopus.KubernetesDeployRawYaml"
+        properties = {
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "False"
+            Octopus.Action.KubernetesContainers.CustomResourceYaml = <<-EOT
+                apiVersion: v1
+                kind: Service
+                metadata:
+                  name: mysql
+                spec:
+                  ports:
+                  - port: 3306
+                  selector:
+                    app: mysql
+                EOT
+            Octopus.Action.KubernetesContainers.DeploymentWait = "NoWait"
+            Octopus.Action.KubernetesContainers.Namespace = "#{Project.Cluster.Namespace}"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool = "hosted-ubuntu"
+
+        container {
+            feed = "docker-hub"
+            image = "octopuslabs/k8s-workertools:latest"
+        }
+    }
+}
